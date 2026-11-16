@@ -98,14 +98,25 @@ class MCTSAgent:
     def _backpropagate(self, node: MCTSNode, result: float):
         """
         Backpropagation: cập nhật W, N ngược lên gốc.
-        result là từ góc nhìn của node.player (người vừa đánh nước dẫn đến node).
-        Khi đi lên cha, góc nhìn đổi → result = 1 - result.
+
+        result = kết quả từ góc nhìn của node.player.
+        Mỗi bước lên cha: góc nhìn đổi → result = 1 - result.
+
+        Quy ước W tại mỗi nút:
+          - W lưu số điểm thắng của người ĐÃ ĐÁNH nước dẫn đến nút này (node.player).
+          - Khi UCT tính W/N tại nút con, nó đại diện cho "nước này tốt như thế nào
+            với người đã chọn nước đó".
+          - Cha chọn con có UCT cao nhất → cha muốn con có W/N cao từ góc nhìn cha.
+          - Vì cha và con là đối thủ nhau, nên khi backprop lên cha phải đảo result.
         """
         current = node
         current_result = result
         while current is not None:
-            current.update(current_result)
-            current_result = 1.0 - current_result   # đổi góc nhìn
+            current.N += 1
+            # Chỉ cộng W nếu nút này có player (không phải root rỗng)
+            if current.move is not None:
+                current.W += current_result
+            current_result = 1.0 - current_result   # đổi góc nhìn khi lên cha
             current = current.parent
 
     # ------------------------------------------------------------------

@@ -70,7 +70,7 @@ def main():
             play_game(ai_x=None, ai_o=ai, board_size=15, win_len=5)
 
         elif choice == "4":
-            ai_x = make_mcts_agent(iterations=500)
+            ai_x = make_mcts_agent(iterations=5000)
             ai_o = make_ab_agent(depth=3)
             play_game(ai_x=ai_x, ai_o=ai_o, board_size=15, win_len=5, verbose=True)
 

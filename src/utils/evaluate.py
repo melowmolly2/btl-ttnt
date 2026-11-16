@@ -7,21 +7,27 @@ Dùng cho:
 
 Ý tưởng:
   Quét toàn bộ các đường (ngang, dọc, chéo chính, chéo phụ).
-  Mỗi đường → tìm chuỗi quân liên tiếp → tra bảng điểm.
+  Mỗi đường -> tìm chuỗi quân liên tiếp -> tra bảng điểm.
   evaluate = my_total_score - opponent_total_score
 """
 import numpy as np
 from src.game.board import Board, X, O, EMPTY
 
 
-# Bảng điểm cho chuỗi N quân liên tiếp
-# Chuỗi mở 2 đầu nguy hiểm hơn mở 1 đầu → nhân hệ số
+# Bảng điểm theo (độ_dài, số_đầu_mở)
+# Chuỗi mở 2 đầu nguy hiểm hơn mở 1 đầu RẤT NHIỀU (gấp 10x, không phải 2x)
+# vì đối thủ không thể chặn cả 2 đầu cùng 1 nước
 _SCORE = {
-    5: 100_000,   # thắng chắc chắn
-    4: 10_000,
-    3: 1_000,
-    2: 100,
-    1: 10,
+    (5, 1): 100_000,  # thắng
+    (5, 2): 100_000,
+    (4, 2): 50_000,   # gần như thắng chắc — không thể chặn 2 đầu
+    (4, 1):  5_000,   # nguy hiểm nhưng chặn được
+    (3, 2):  2_000,   # rất nguy hiểm
+    (3, 1):    200,
+    (2, 2):    100,
+    (2, 1):     10,
+    (1, 2):      5,
+    (1, 1):      1,
 }
 
 
@@ -29,10 +35,9 @@ def _score_line(line, player: int) -> int:
     """
     Tính điểm cho player trên một đường thẳng (1D array).
 
-    Ví dụ line = [O, X, X, X, ., ., O]
-    Với player = X:
-      - Chuỗi X X X, mở 1 đầu phải (ô trống), bị chặn trái bởi O
-      → điểm = 1_000 * 1
+    Ví dụ:
+      [O, X, X, X, ., ., O] → chuỗi 3, mở 1 đầu → (3,1) = 200
+      [., X, X, X, ., ., O] → chuỗi 3, mở 2 đầu → (3,2) = 2000
     """
     score = 0
     n = len(line)
@@ -43,7 +48,6 @@ def _score_line(line, player: int) -> int:
             i += 1
             continue
 
-        # Tìm đầu chuỗi quân player
         # Kiểm tra đầu trái có mở không
         left_open = (i > 0 and line[i - 1] == EMPTY)
 
@@ -51,7 +55,7 @@ def _score_line(line, player: int) -> int:
         j = i
         while j < n and line[j] == player:
             j += 1
-        length = j - i  # số quân liên tiếp
+        length = j - i
 
         # Kiểm tra đầu phải có mở không
         right_open = (j < n and line[j] == EMPTY)
@@ -59,7 +63,8 @@ def _score_line(line, player: int) -> int:
         open_ends = int(left_open) + int(right_open)
 
         if open_ends > 0:
-            score += _SCORE.get(min(length, 5), 0) * open_ends
+            key = (min(length, 5), open_ends)
+            score += _SCORE.get(key, 0)
 
         i = j  # nhảy qua chuỗi vừa xét
 
