@@ -31,13 +31,35 @@ _SCORE = {
 }
 
 
-def _score_line(line, player: int) -> int:
+def _count_space(line, pos: int, direction: int) -> int:
+    """Đếm số ô EMPTY liên tiếp từ pos theo direction (+1 hoặc -1)."""
+    n = len(line)
+    space = 0
+    p = pos
+    while 0 <= p < n and line[p] == EMPTY:
+        space += 1
+        p += direction
+    return space
+
+
+def _score_line(line, player: int, win_len: int = 5) -> int:
     """
     Tính điểm cho player trên một đường thẳng (1D array).
 
-    Ví dụ:
-      [O, X, X, X, ., ., O] → chuỗi 3, mở 1 đầu → (3,1) = 200
-      [., X, X, X, ., ., O] → chuỗi 3, mở 2 đầu → (3,2) = 2000
+    Một đầu được coi là "mở" khi ô kề là EMPTY.
+    Nhưng nếu space_left + length + space_right < win_len thì chuỗi
+    không thể thắng theo hướng này → 0 điểm (bị chặn hoàn toàn).
+    Nếu đủ chỗ nhưng chỉ 1 phía có space → tính 1 đầu mở.
+
+    Ví dụ (win_len=5):
+      O . X X X . O  → total_space=1+1=2, length=3 → 2+3=5 >= 5 → có thể thắng
+                       nhưng space_left=space_right=1, không đầu nào "rộng hơn"
+                       → cả 2 đầu đều bị hạn chế → tính (3,1) = 200
+      . . X X X . O  → space_left=2, space_right=1, total=6 >= 5
+                       trái rộng hơn (2 chỗ), phải hẹp (1 chỗ)
+                       → 2 đầu kề EMPTY → (3,2) = 2000  (vẫn double threat)
+      O . X X X . .  → đối xứng với trên → (3,2) = 2000
+      O X X X O      → total=0 < 5 → 0 điểm
     """
     score = 0
     n = len(line)
@@ -48,25 +70,38 @@ def _score_line(line, player: int) -> int:
             i += 1
             continue
 
-        # Kiểm tra đầu trái có mở không
-        left_open = (i > 0 and line[i - 1] == EMPTY)
-
         # Đếm độ dài chuỗi
         j = i
         while j < n and line[j] == player:
             j += 1
         length = j - i
 
-        # Kiểm tra đầu phải có mở không
-        right_open = (j < n and line[j] == EMPTY)
+        # Đếm chỗ trống 2 phía
+        space_left  = _count_space(line, i - 1, direction=-1)
+        space_right = _count_space(line, j,     direction=+1)
 
-        open_ends = int(left_open) + int(right_open)
+        total_space = space_left + space_right
+
+        # Không đủ chỗ để thắng → bỏ qua
+        if length + total_space < win_len:
+            i = j
+            continue
+
+        # Đầu nào kề EMPTY thì coi là mở
+        left_open  = (i > 0   and line[i - 1] == EMPTY)
+        right_open = (j < n   and line[j]     == EMPTY)
+        open_ends  = int(left_open) + int(right_open)
+
+        # Nếu cả 2 đầu kề EMPTY nhưng mỗi bên chỉ có đúng 1 chỗ trống
+        # và tổng vừa đủ win_len → thực ra chỉ có thể đi 1 hướng → 1 đầu mở
+        if open_ends == 2 and space_left == 1 and space_right == 1 and length + 2 == win_len:
+            open_ends = 1
 
         if open_ends > 0:
             key = (min(length, 5), open_ends)
             score += _SCORE.get(key, 0)
 
-        i = j  # nhảy qua chuỗi vừa xét
+        i = j
 
     return score
 
@@ -80,20 +115,20 @@ def _total_score(board: Board, player: int) -> int:
 
     # Hàng ngang
     for r in range(n):
-        total += _score_line(b[r, :], player)
+        total += _score_line(b[r, :], player, win)
 
     # Hàng dọc
     for c in range(n):
-        total += _score_line(b[:, c], player)
+        total += _score_line(b[:, c], player, win)
 
     # Đường chéo chính (↘): chỉ lấy đường đủ dài (>= win_len)
     for k in range(-(n - win), n - win + 1):
-        total += _score_line(b.diagonal(k), player)
+        total += _score_line(b.diagonal(k), player, win)
 
     # Đường chéo phụ (↙): lật bảng rồi lấy chéo chính
     b_flip = np.fliplr(b)
     for k in range(-(n - win), n - win + 1):
-        total += _score_line(b_flip.diagonal(k), player)
+        total += _score_line(b_flip.diagonal(k), player, win)
 
     return total
 
