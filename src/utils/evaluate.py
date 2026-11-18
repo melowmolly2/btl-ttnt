@@ -47,19 +47,14 @@ def _score_line(line, player: int, win_len: int = 5) -> int:
     Tính điểm cho player trên một đường thẳng (1D array).
 
     Một đầu được coi là "mở" khi ô kề là EMPTY.
-    Nhưng nếu space_left + length + space_right < win_len thì chuỗi
-    không thể thắng theo hướng này → 0 điểm (bị chặn hoàn toàn).
-    Nếu đủ chỗ nhưng chỉ 1 phía có space → tính 1 đầu mở.
+    Nếu length + total_space < win_len → chuỗi không thể thắng → 0 điểm.
+    Nếu length + total_space == win_len → chỉ đi được 1 hướng → tối đa 1 đầu mở.
 
     Ví dụ (win_len=5):
-      O . X X X . O  → total_space=1+1=2, length=3 → 2+3=5 >= 5 → có thể thắng
-                       nhưng space_left=space_right=1, không đầu nào "rộng hơn"
-                       → cả 2 đầu đều bị hạn chế → tính (3,1) = 200
-      . . X X X . O  → space_left=2, space_right=1, total=6 >= 5
-                       trái rộng hơn (2 chỗ), phải hẹp (1 chỗ)
-                       → 2 đầu kề EMPTY → (3,2) = 2000  (vẫn double threat)
-      O . X X X . .  → đối xứng với trên → (3,2) = 2000
-      O X X X O      → total=0 < 5 → 0 điểm
+      O X X X O      → total_space=0 → 0+3 < 5 → 0 điểm
+      O . X X X . O  → total_space=2 → 2+3=5 == win_len → min(open_ends,1) → (3,1)=200
+      . . X X X . O  → total_space=3 → 3+3=6 > win_len → 2 đầu mở → (3,2)=2000
+      . . X X X . .  → total_space=4 → 2 đầu mở → (3,2)=2000
     """
     score = 0
     n = len(line)
@@ -92,10 +87,9 @@ def _score_line(line, player: int, win_len: int = 5) -> int:
         right_open = (j < n   and line[j]     == EMPTY)
         open_ends  = int(left_open) + int(right_open)
 
-        # Nếu cả 2 đầu kề EMPTY nhưng mỗi bên chỉ có đúng 1 chỗ trống
-        # và tổng vừa đủ win_len → thực ra chỉ có thể đi 1 hướng → 1 đầu mở
-        if open_ends == 2 and space_left == 1 and space_right == 1 and length + 2 == win_len:
-            open_ends = 1
+        # Nếu tổng chỗ trống vừa đúng đủ win_len → chỉ có thể đi 1 hướng → 1 đầu mở
+        if length + total_space == win_len:
+            open_ends = min(open_ends, 1)
 
         if open_ends > 0:
             key = (min(length, 5), open_ends)
