@@ -1,71 +1,93 @@
-# Evaluate - Hàm lượng giá (evaluation / heuristic)
+# Evaluate — Hàm lượng giá (Heuristic)
 
-Dùng cho Minimax (trả về điểm khi hết depth) và Rollout heuristic trong MCTS
+Dùng cho Minimax (trả về điểm khi hết `depth`) và rollout heuristic trong MCTS khi cần ước lượng tình thế bàn cờ mà không cần duyệt đến trạng thái kết thúc.
 
-Ý tưởng:
+---
 
-- Quét toàn bộ các đường (ngang, dọc, chéo chính, chéo phụ)
-- Mỗi đường -> tìm chuỗi quan liên tiếp -> Tra bảng điểm.
-- `evaluate = my_total_score - opponent_total_score`
+## Ý tưởng tổng quan
 
-Bảng điểm
+```
+evaluate(board, perspective) = my_total_score − opponent_total_score
+```
 
+Quét toàn bộ bàn cờ theo 4 hướng (ngang, dọc, chéo chính, chéo phụ). Trên mỗi đường, tìm các chuỗi quân liên tiếp rồi tra bảng điểm theo `(độ_dài, số_đầu_mở)`.
+
+---
+
+## Bảng điểm
 
 | Độ dài chuỗi | Số đầu mở | Điểm |
-| ---------------- | ------------- | ------ |
-| 5                | 1             | 100000 |
-| 5                | 2             | 100000 |
-| 4                | 2             | 50000  |
-| 4                | 1             | 5000   |
-| 3                | 2             | 2000   |
-| 3                | 1             | 200    |
-| 2                | 1             | 10     |
-| 1                | 2             | 5      |
-| 1                | 1             | 1      |
+|:---:|:---:|---:|
+| 5 | 1 hoặc 2 | 100,000 |
+| 4 | 2 | 50,000 |
+| 4 | 1 | 5,000 |
+| 3 | 2 | 2,000 |
+| 3 | 1 | 200 |
+| 2 | 2 | 100 |
+| 2 | 1 | 10 |
+| 1 | 2 | 5 |
+| 1 | 1 | 1 |
 
-Giải thích cách chọn bảng điểm:
-Có 2 yếu tố:
+### Tại sao điểm tăng phi tuyến theo độ dài?
 
-- Độ dài chuỗi
-- Số đầu mở
+Chuỗi dài không chỉ "dài hơn" mà **nguy hiểm hơn theo cấp số nhân**. Chuỗi 4 mở 2 đầu gần như thắng chắc (50,000) trong khi chuỗi 2 gần như vô hại (10) — khoảng cách điểm lớn ép Minimax ưu tiên đúng mức độ đe dọa.
 
-Yếu tố 1: Độ dài chuỗi
+### Tại sao mở 2 đầu chênh gấp 10× so với mở 1 đầu?
 
-- Càng dài thì càng nguy hiểm
-- Điểm tăng theo cấp số nhân
-  (VD: Chuỗi 4 không phải gấp đôi chuỗi 2, chuỗi 4 nếu không chặn thì sẽ thua còn chuỗi 2 gần như không đáng sợ gì cả).
-- Khoảng cách điểm lớn ép minimax ưu tiên đúng mức độ nguy hiểm
+Mở 2 đầu có nghĩa đối thủ phải **chặn cả hai đầu** nhưng chỉ có **một nước** để đánh. Ví dụ: `_ X X X X _` — đối thủ không thể chặn cả hai đầu trong một lượt → thua chắc.
 
-Yếu tố 2: Số đầu mở
+---
 
-- Mở 2 đầu chênh gấp nhiều lần so với mở 1 đầu (10x)
-- Mở 2 đầu tức là đối thủ phải chặn cả hai đầu nhưng chỉ có 1 nước để chặn.
-- Trường hợp 4 mở 2 đầu: 50000 điểm so với 5 mở 1 đầu : 100000. 4 mở 2 đầu gần như thắng chắc vì không thể chặn 2 đầu cùng 1 lúc được, chỉ thua nếu đối thủ có nước 4 mở 1 hoặc 2 đầu ngay trước đấy
+## `_count_space(line, pos, direction) → int`
 
-`_count_space`: Đếm số ô trống liên tiếp từ pos theo direction
+Đếm số ô EMPTY liên tiếp từ `pos` theo hướng `direction` (+1 hoặc -1). Dùng để tính không gian trống ở hai phía chuỗi.
 
-`_score_line`: Tính điểm cho player trên một đường thẳng
+---
 
-Một đầu được coi là mở khi ô kề trống. Nhưng nếu khoảng trái + độ dài chuỗi hiện tại + khoảng phải < độ dài để thắng thì chuỗi không thể thắng theo hướng này -> chuỗi bị chặn hoàn toàn.
+## `_score_line(line, player, win_len) → int`
 
-VD với win_len=5:
+Tính điểm cho `player` trên một đường 1D.
 
-- O.XXX.O -> `total_space=1+1=2,length=3`-> 2+3=5>=5, có thể thắng nhưng `left_space=right_space=1`, không đầu nào rộng hơn -> cả hai đầu đều bị hạn chế -> tính (3,1)=200
-- ..XXX.O -> `space_left=2,space_right=1, total=6>=5, trái có 2 chỗ, phải có 1 đầu -> 2 đầu kề empty -> (3,2)=2000 (vẫn là nước đôi)
-- O.XXX.. -> đối xứng với trường hợp trên -> (3,2)=2000
-- OXXXO -> `total=3<5`-> 0 điểm
-- O.XXXO -> `total=4<5`-> 0 điểm
+**Thuật toán:**
 
-Hàm chạy như sau:
+1. Quét từ trái sang phải, tìm vị trí bắt đầu chuỗi quân của `player`.
+2. Đếm độ dài chuỗi `length`.
+3. Đếm ô trống hai phía: `space_left`, `space_right`.
+4. Nếu `length + total_space < win_len` → chuỗi bị chặn hoàn toàn, không thể thắng → bỏ qua (0 điểm).
+5. Đếm số đầu mở (đầu kề ô EMPTY).
+6. Nếu `length + total_space == win_len` → chỉ đủ chỗ đi một hướng → tối đa 1 đầu mở.
+7. Tra bảng điểm theo `(min(length, 5), open_ends)`.
 
-- Đếm độ dài chuỗi
-- Đếm khoảng trống 2 phía
-- Nếu không đủ chỗ để thắng (`space_left+space_right+length<win_len`) thì  bỏ qua
-- Đầu nào kề ô trống thì coi là mở, nếu tổng chỗ trống vừa đúng đủ `win_len` thì chỉ có thể đi 1 hướng -> tính như 1 đầu mở
-- Trả về kết quả điểm tra theo bảng điểm
+**Ví dụ (win_len = 5):**
 
-`_total_score`: Tổng điểm của player trên toàn bộ bàn cờ (4 hướng)
+| Tình huống | total_space | open_ends | Điểm |
+|---|:---:|:---:|---:|
+| `O X X X O` | 0 | 0 | 0 (bị chặn 2 đầu, 0+3 < 5) |
+| `O . X X X . O` | 2 | 2 → min(2,1)=1 | 200 (3,1) |
+| `O . X X X . .` | 3 | 2 | 2,000 (3,2) |
+| `. . X X X . .` | 4 | 2 | 2,000 (3,2) |
 
-`evaluate`: Hàm lượng giá trạng thái bàn cờ từ góc nhìn perspective (X hoặc O).
+---
 
-Trả về: +1tr nếu perspective thắng, -1tr nếu perspective thua,   0 nếu hòa, nếu chưa ai thắng thua hoặc hòa trả về tổng điểm của mình trừ tổng điểm đối thủ
+## `_total_score(board, player) → int`
+
+Tổng điểm của `player` trên toàn bộ bàn cờ, quét 4 hướng:
+- **Ngang**: từng hàng `b[r, :]`
+- **Dọc**: từng cột `b[:, c]`
+- **Chéo chính (↘)**: `b.diagonal(k)` cho các k đủ dài
+- **Chéo phụ (↙)**: lật bảng ngang (`np.fliplr`) rồi lấy chéo chính
+
+---
+
+## `evaluate(board, perspective) → float`
+
+Hàm lượng giá cuối cùng, trả về:
+
+| Tình huống | Kết quả |
+|---|---:|
+| `perspective` thắng | +1,000,000 |
+| `perspective` thua | −1,000,000 |
+| Hòa | 0 |
+| Chưa kết thúc | `my_score − opp_score` |
+
+Điểm tuyệt đối (±1,000,000) lớn hơn mọi điểm heuristic có thể có → đảm bảo Minimax luôn ưu tiên thắng/tránh thua hơn bất kỳ lợi thế vị trí nào.
