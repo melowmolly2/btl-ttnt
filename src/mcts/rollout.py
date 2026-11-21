@@ -8,10 +8,18 @@ Hai chiến lược:
 import random
 from src.game.board import Board, EMPTY
 
+# Giới hạn số bước trong random rollout để tránh simulation quá dài trên bàn lớn.
+# Nếu chưa kết thúc sau MAX_ROLLOUT_STEPS nước → coi như hòa (0.5).
+MAX_ROLLOUT_STEPS = 30
+
 
 def random_rollout(board: Board, player: int) -> float:
     """
-    Mô phỏng ngẫu nhiên từ trạng thái board cho đến khi kết thúc.
+    Mô phỏng ngẫu nhiên từ trạng thái board, tối đa MAX_ROLLOUT_STEPS nước.
+
+    Giới hạn bước cần thiết trên bàn 15×15: không giới hạn thì simulation
+    có thể chạy 100–200 nước mà không ra kết quả vì hai bên đi bừa hiếm
+    khi tạo được 5 quân thẳng hàng.
 
     Parameters
     ----------
@@ -20,22 +28,23 @@ def random_rollout(board: Board, player: int) -> float:
 
     Returns
     -------
-    1.0 nếu player thắng, 0.5 nếu hòa, 0.0 nếu thua
+    1.0 nếu player thắng, 0.5 nếu hòa hoặc hết bước, 0.0 nếu thua
     """
     sim = board.clone()
-    while not sim.is_terminal:
+    steps = 0
+    while not sim.is_terminal and steps < MAX_ROLLOUT_STEPS:
         moves = sim.get_legal_moves()
         if not moves:
             break
-        move = random.choice(moves)
-        sim.make_move(*move)
+        sim.make_move(*random.choice(moves))
+        steps += 1
 
     return _result(sim, player)
 
 
 def heuristic_rollout(board: Board, player: int) -> float:
     """
-    Rollout có heuristic:
+    Rollout có heuristic, tối đa MAX_ROLLOUT_STEPS nước:
     - Nếu có nước thắng ngay → chọn nước đó.
     - Nếu đối thủ có nước thắng ngay → chặn.
     - Nếu không → ngẫu nhiên.
@@ -44,9 +53,11 @@ def heuristic_rollout(board: Board, player: int) -> float:
     (Tiền thân của value network trong AlphaGo/AlphaZero)
     """
     sim = board.clone()
-    while not sim.is_terminal:
+    steps = 0
+    while not sim.is_terminal and steps < MAX_ROLLOUT_STEPS:
         move = _pick_smart_move(sim)
         sim.make_move(*move)
+        steps += 1
     return _result(sim, player)
 
 
@@ -63,29 +74,31 @@ def _result(board: Board, player: int) -> float:
 
 
 def _pick_smart_move(board: Board):
-    """Chọn nước thắng ngay / chặn thắng, nếu không thì random."""
+    """Chọn nước thắng ngay / chặn thắng, nếu không thì random.
+    Ghi tay + hoàn tác thủ công để tránh clone và undo_move overhead.
+    """
     moves = board.get_legal_moves()
     me = board.current_player
     opp = -me
 
     # Ưu tiên 1: nước thắng ngay
     for move in moves:
-        clone = board.clone()
-        clone.make_move(*move)
-        if clone.winner == me:
+        board.board[move[0], move[1]] = me
+        board.move_history.append(move)
+        wins = board._check_win(move[0], move[1])
+        board.board[move[0], move[1]] = EMPTY
+        board.move_history.pop()
+        if wins:
             return move
 
     # Ưu tiên 2: chặn đối thủ thắng ngay
     for move in moves:
-        clone = board.clone()
-        # Giả vờ đối thủ đánh
-        clone.board[move[0], move[1]] = opp
-        clone.move_history.append(move)
-        if clone._check_win(move[0], move[1]):
-            # nếu đối thủ sẽ thắng ở đây → chặn
-            clone.board[move[0], move[1]] = EMPTY
-            clone.move_history.pop()
+        board.board[move[0], move[1]] = opp
+        board.move_history.append(move)
+        blocks = board._check_win(move[0], move[1])
+        board.board[move[0], move[1]] = EMPTY
+        board.move_history.pop()
+        if blocks:
             return move
 
-    # Mặc định: ngẫu nhiên
     return random.choice(moves)

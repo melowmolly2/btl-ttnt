@@ -1,7 +1,7 @@
 """
 run_mcts_experiment.py
 Khảo sát ảnh hưởng của c ∈ {0.5, 1.0, 1.4, 2.0} và iterations lên tỷ lệ thắng.
-MCTS (X) đấu với Random agent (O) trên 3x3 và 15x15.
+MCTS đấu với Random agent trên 2 bàn: 3×3 (win=3) và 15×15 (win=5).
 """
 import sys
 import os
@@ -27,7 +27,7 @@ def run_match(mcts: MCTSAgent, n_games: int = 50, board_size: int = 3, win_len: 
     wins = draws = losses = 0
     for i in range(n_games):
         board = Board(board_size, win_len)
-        # Đổi lượt đi trước theo từng ván
+        # Đổi lượt đi trước theo từng ván để công bằng
         mcts_is_x = (i % 2 == 0)
         while not board.is_terminal:
             if (board.current_player == X) == mcts_is_x:
@@ -48,33 +48,64 @@ def run_match(mcts: MCTSAgent, n_games: int = 50, board_size: int = 3, win_len: 
     return winrate
 
 
-def run_experiment():
-    c_values = [0.5, 1.0, 1.4, 2.0]
-    iteration_list = [50, 100, 200, 500, 1000, 2000]
-    n_games = 50
-    board_size, win_len = 3, 3   # Thay 15, 5 để test bàn lớn
+def run_experiment_for_board(board_size: int, win_len: int, n_games: int,
+                              c_values: list, iteration_list: list) -> dict:
+    """Chạy thực nghiệm cho một cấu hình bàn cờ, trả về data {c: {iters: winrate}}."""
+    print(f"\n{'='*60}")
+    print(f"  BÀN {board_size}×{board_size} — cần {win_len} quân thẳng hàng")
+    print(f"  Số ván mỗi cấu hình: {n_games}")
+    print(f"{'='*60}")
 
-    data = {}  # {c_val: {iterations: winrate}}
-
+    data = {}
     for c in c_values:
-        print(f"\n=== c = {c} ===")
+        print(f"\n  c = {c}")
         data[c] = {}
         for iters in iteration_list:
-            print(f"  iterations = {iters}:", end="")
+            print(f"    iterations = {iters:>5}:", end="  ")
             agent = MCTSAgent(iterations=iters, c=c, rollout_fn=random_rollout)
             rate = run_match(agent, n_games=n_games, board_size=board_size, win_len=win_len)
             data[c][iters] = rate
 
-    # Lưu kết quả
-    os.makedirs(os.path.join(os.path.dirname(__file__), "results"), exist_ok=True)
-    result_path = os.path.join(os.path.dirname(__file__), "results", "mcts_c_experiment.json")
-    # JSON keys phải là string
-    save_data = {str(c): {str(k): v for k, v in imap.items()} for c, imap in data.items()}
-    with open(result_path, "w") as f:
-        json.dump(save_data, f, indent=2)
-    print(f"\nĐã lưu: {result_path}")
+    return data
 
-    plot_winrate_vs_iterations(data)
+
+def run_experiment():
+    c_values      = [0.5, 1.0, 1.4, 2.0]
+
+    # Bàn 3×3: nhiều ván hơn vì mỗi ván nhanh
+    # Bàn 15×15: ít ván hơn vì mỗi ván chậm hơn nhiều
+    configs = [
+        # {"board_size": 3,  "win_len": 3, "n_games": 200,
+        #  "iteration_list": [50, 100, 200, 500, 1000, 2000],
+        #  "label": "3x3"},   # đã có kết quả, bỏ comment nếu muốn chạy lại
+        {"board_size": 15, "win_len": 5, "n_games": 20,
+         "iteration_list": [100, 200, 500],
+         "label": "15x15"},
+    ]
+
+    results_dir = os.path.join(os.path.dirname(__file__), "results")
+    os.makedirs(results_dir, exist_ok=True)
+
+    for cfg in configs:
+        data = run_experiment_for_board(
+            board_size=cfg["board_size"],
+            win_len=cfg["win_len"],
+            n_games=cfg["n_games"],
+            c_values=c_values,
+            iteration_list=cfg["iteration_list"],
+        )
+
+        # Lưu JSON (key phải là string)
+        save_data = {str(c): {str(k): v for k, v in imap.items()} for c, imap in data.items()}
+        fname = f"mcts_c_experiment_{cfg['label']}.json"
+        result_path = os.path.join(results_dir, fname)
+        with open(result_path, "w", encoding="utf-8") as f:
+            json.dump(save_data, f, indent=2)
+        print(f"\n  Đã lưu: {result_path}")
+
+        # Vẽ đồ thị cho bàn này
+        print(f"  Vẽ đồ thị bàn {cfg['label']}...")
+        plot_winrate_vs_iterations(data, save=True)
 
 
 if __name__ == "__main__":
