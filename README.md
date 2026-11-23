@@ -1,7 +1,8 @@
 # BTL Trí Tuệ Nhân Tạo — Tic-Tac-Toe AI
 
-**Môn học:** Trí Tuệ Nhân Tạo
-**Deadline:** 10/12/2026
+**Môn học:** Trí Tuệ Nhân Tạo  
+**Nhóm thực hiện:** Phạm Thiên Minh, Lục Gia Bảo (UET-VNU)  
+**Deadline:** 10/12/2026  
 **Hình thức:** Report IEEE + GitHub repo + Demo + Vấn đáp
 
 ---
@@ -34,7 +35,9 @@ btl-ttnt/
 │   └── results/                      # JSON kết quả thực nghiệm
 ├── giai thich tung file/             # Tài liệu giải thích chi tiết từng module
 ├── report/                           # Bản report IEEE conference paper
-│   └── report.md                     # Draft report tiếng Anh
+│   ├── report.md                     # Bản nháp Markdown
+│   ├── report.tex / report.pdf       # Bản IEEE tiếng Anh (nộp chính)
+│   └── report_vi.tex / report_vi.pdf # Bản dịch tiếng Việt
 ├── assets/
 │   └── figures/                      # Đồ thị kết quả cho report
 ├── main.py                           # Entry point CLI
@@ -108,16 +111,16 @@ $$
 
 ## Checklist hoàn thành
 
-- [X]  Tic-Tac-Toe 5 quân thẳng hàng (bàn N×N)
-- [X]  Minimax cơ bản
-- [X]  Alpha-Beta Pruning
-- [X]  MCTS + UCT
-- [X]  Thực nghiệm c ∈ {0.5, 1.0, 1.4, 2.hua0} (3×3 và 15×15)
-- [X]  Kiểm chứng kohông thua trên 3×3 (vs Alpha-Beta depth 9 & Random)
-- [X]  Rollout heuristic
-- [X]  Đồ thị kết quả & bảng W, N, W/N tại nút gốc
-- [X]  Giao diện Tkinter (`ui.py`)
-- [X]  (Bonus) Phân tích toán học UCT (trong `report/report.md`)
-- [X]  (Bonus) Thử nghiệm biến thể UCT & cải tiến Progressive Bias
-- [ ]  Hoàn thiện PDF IEEE 4–5 trang & kiểm tra cuối cùng
-- [ ]  Demo & vấn đáp
+- [x] Tic-Tac-Toe 5 quân thẳng hàng (bàn N×N)
+- [x] Minimax cơ bản
+- [x] Alpha-Beta Pruning
+- [x] MCTS + UCT
+- [x] Thực nghiệm c ∈ {0.5, 1.0, 1.4, 2.0} (3×3 và 15×15)
+- [x] Kiểm chứng không thua trên 3×3 (vs Alpha-Beta depth 9 & Random)
+- [x] Rollout heuristic
+- [x] Đồ thị kết quả & bảng W, N, W/N tại nút gốc
+- [x] Giao diện Tkinter (`ui.py`)
+- [x] (Bonus) Phân tích toán học UCT (trong `report/report.md` & `report.tex`)
+- [x] (Bonus) Thử nghiệm biến thể UCT & cải tiến Progressive Bias
+- [x] Hoàn thiện PDF IEEE (`report/report.pdf` & `report/report_vi.pdf`)
+- [ ] Demo & vấn đáp

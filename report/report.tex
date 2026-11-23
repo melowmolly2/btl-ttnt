@@ -125,7 +125,7 @@ The square-root and logarithmic terms arise directly from Hoeffding's inequality
 P(\bar{X}_i - \mu_i \ge \epsilon) \le e^{-2 N_i \epsilon^2}, \qquad
 P(\mu_i - \bar{X}_i \ge \epsilon) \le e^{-2 N_i \epsilon^2}.
 \end{equation}
-Setting the tail probability bound to $N_{\mathrm{parent}}^{-4}$ (so the probability of underestimating the optimal arm decays polynomially as total visits $N_{\mathrm{parent}}$ grow) yields:
+Setting the tail probability bound to $N_{\mathrm{parent}}^{-4}$---the smallest integer exponent ensuring that summing over all $\le t^2$ visit-count pairs $(s, s_i)$ at step $t$ yields a convergent series $\sum_{t=1}^{\infty} t^2 \cdot t^{-4} = \sum_{t=1}^{\infty} t^{-2} = \pi^2/6 < \infty$ and keeps the residual error $\mathcal{O}(1)$---yields:
 \begin{equation}
 e^{-2 N_i \epsilon^2} = N_{\mathrm{parent}}^{-4} \implies \epsilon = \sqrt{\frac{2 \ln N_{\mathrm{parent}}}{N_i}}.
 \end{equation}
