@@ -27,31 +27,45 @@ class MCTSAgent:
         iterations: int = 1000,
         c: float = math.sqrt(2),
         rollout_fn=None,
+        uct_variant: str = "standard",
     ):
         self.iterations = iterations
         self.c = c
         self.rollout_fn = rollout_fn or random_rollout
+        self.uct_variant = uct_variant
+        self.last_root_stats: list[dict] = []
 
     # ------------------------------------------------------------------
     # Public API
     # ------------------------------------------------------------------
 
-    def get_move(self, board: Board) -> tuple[int, int]:
-        """Trả về (row, col) — nước đi tốt nhất."""
+    def _search(self, board: Board) -> MCTSNode:
         root = MCTSNode(board.clone())
-
         for _ in range(self.iterations):
             node = self._select(root)
-
             if not node.is_terminal:
                 if not node.is_fully_expanded:
                     node = node.expand()   # Expansion
                 result = self.rollout_fn(node.board, node.player)
             else:
                 result = self._terminal_result(node.board, node.player)
-
             self._backpropagate(node, result)
 
+        stats = [
+            {
+                "move": ch.move,
+                "W": ch.W,
+                "N": ch.N,
+                "W/N": ch.W / ch.N if ch.N > 0 else 0,
+            }
+            for ch in root.children
+        ]
+        self.last_root_stats = sorted(stats, key=lambda s: s["N"], reverse=True)
+        return root
+
+    def get_move(self, board: Board) -> tuple[int, int]:
+        """Trả về (row, col) — nước đi tốt nhất."""
+        root = self._search(board)
         best = root.most_visited_child()
         return best.move
 
@@ -60,26 +74,8 @@ class MCTSAgent:
         Chạy MCTS và trả về thống kê W, N, W/N của các nút con gốc.
         Dùng cho thực nghiệm và report.
         """
-        root = MCTSNode(board.clone())
-        for _ in range(self.iterations):
-            node = self._select(root)
-            if not node.is_terminal:
-                if not node.is_fully_expanded:
-                    node = node.expand()
-                result = self.rollout_fn(node.board, node.player)
-            else:
-                result = self._terminal_result(node.board, node.player)
-            self._backpropagate(node, result)
-
-        stats = []
-        for ch in root.children:
-            stats.append({
-                "move": ch.move,
-                "W": ch.W,
-                "N": ch.N,
-                "W/N": ch.W / ch.N if ch.N > 0 else 0,
-            })
-        return sorted(stats, key=lambda s: s["N"], reverse=True)
+        self._search(board)
+        return self.last_root_stats
 
     # ------------------------------------------------------------------
     # Bốn bước MCTS
@@ -90,7 +86,7 @@ class MCTSAgent:
         while not node.is_terminal:
             if not node.is_fully_expanded:
                 return node      # Expansion sẽ xử lý
-            node = node.best_child(self.c)
+            node = node.best_child(self.c, self.uct_variant)
         return node
 
     # Expansion nằm trong get_move (node.expand())

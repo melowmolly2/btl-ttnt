@@ -3,6 +3,9 @@ node.py — Lớp MCTSNode: một nút trong cây MCTS.
 """
 import math
 from src.game.board import Board
+from src.utils.evaluate import evaluate
+
+UCT_VARIANTS = ("standard", "no_sqrt", "no_ln", "linear", "progressive_bias")
 
 
 class MCTSNode:
@@ -31,21 +34,47 @@ class MCTSNode:
         # Người chơi đã đánh nước dẫn đến nút này (là người chơi trước khi board đổi lượt)
         self.player = -board.current_player
         self.untried = board.get_legal_moves()
+        self._heuristic: float | None = None
+
+    def _get_heuristic(self) -> float:
+        """Điểm heuristic chuẩn hóa về [0, 1] từ góc nhìn self.player (lazy-cached)."""
+        if self._heuristic is None:
+            raw = evaluate(self.board, self.player)
+            self._heuristic = 0.5 + 0.5 * math.tanh(raw / 5000.0)
+        return self._heuristic
 
     # ------------------------------------------------------------------
     # UCT score
     # ------------------------------------------------------------------
 
-    def uct_score(self, c: float = math.sqrt(2)) -> float:
+    def uct_score(self, c: float = math.sqrt(2), variant: str = "standard") -> float:
         """
-        UCT_i = W_i/N_i + c * sqrt(ln(N_parent) / N_i)
+        Tính điểm UCT theo biến thể:
+          - standard         : W/N + c * sqrt(ln(N_p) / N)
+          - no_sqrt          : W/N + c * (ln(N_p) / N)
+          - no_ln            : W/N + c * sqrt(N_p / N)
+          - linear           : W/N + c * (N_p / N)
+          - progressive_bias : W/N + c * sqrt(ln(N_p) / N) + H / (N + 1)
         Nút chưa thăm (N=0) → trả về +∞ để ưu tiên tối cao.
         """
         if self.N == 0:
             return float("inf")
         exploitation = self.W / self.N
-        exploration = c * math.sqrt(math.log(self.parent.N) / self.N)
-        return exploitation + exploration
+        n_p = self.parent.N
+        if variant == "standard":
+            exploration = c * math.sqrt(math.log(n_p) / self.N)
+            return exploitation + exploration
+        if variant == "no_sqrt":
+            return exploitation + c * (math.log(n_p) / self.N)
+        if variant == "no_ln":
+            return exploitation + c * math.sqrt(n_p / self.N)
+        if variant == "linear":
+            return exploitation + c * (n_p / self.N)
+        if variant == "progressive_bias":
+            exploration = c * math.sqrt(math.log(n_p) / self.N)
+            bias = self._get_heuristic() / (self.N + 1)
+            return exploitation + exploration + bias
+        raise ValueError(f"Unknown UCT variant: {variant}")
 
     # ------------------------------------------------------------------
     # Truy vấn
@@ -59,9 +88,9 @@ class MCTSNode:
     def is_terminal(self) -> bool:
         return self.board.is_terminal
 
-    def best_child(self, c: float = math.sqrt(2)) -> "MCTSNode":
+    def best_child(self, c: float = math.sqrt(2), variant: str = "standard") -> "MCTSNode":
         """Trả về con có UCT score cao nhất."""
-        return max(self.children, key=lambda ch: ch.uct_score(c))
+        return max(self.children, key=lambda ch: ch.uct_score(c, variant))
 
     def most_visited_child(self) -> "MCTSNode":
         """Trả về con được thăm nhiều nhất (dùng khi chọn nước đi thực tế)."""

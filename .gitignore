@@ -6,7 +6,5 @@ venv/
 dist/
 build/
 .DS_Store
-*.png
-experiments/results/*.json
 experiments/results/*.csv
 !experiments/results/.gitkeep

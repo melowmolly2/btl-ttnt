@@ -56,8 +56,8 @@ class AgentWrapper:
                 "nodes": self.agent.nodes_visited,
                 "move":  move,
             }
-        else:  # mcts — gọi get_root_stats() với board gốc (trước khi đánh)
-            top = self.agent.get_root_stats(board)[:3]
+        else:  # mcts — đọc stats từ chính lần search vừa chạy
+            top = self.agent.last_root_stats[:3]
             self.stats = {"top": top, "move": move}
         return move
 

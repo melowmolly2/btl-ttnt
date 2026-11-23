@@ -1,0 +1,110 @@
+{
+  "alpha_beta_perfect": {
+    "1.0": {
+      "100": {
+        "wins": 0,
+        "draws": 39,
+        "losses": 11,
+        "games": 50
+      },
+      "500": {
+        "wins": 0,
+        "draws": 48,
+        "losses": 2,
+        "games": 50
+      },
+      "1000": {
+        "wins": 0,
+        "draws": 50,
+        "losses": 0,
+        "games": 50
+      },
+      "2000": {
+        "wins": 0,
+        "draws": 50,
+        "losses": 0,
+        "games": 50
+      }
+    },
+    "1.414": {
+      "100": {
+        "wins": 0,
+        "draws": 41,
+        "losses": 9,
+        "games": 50
+      },
+      "500": {
+        "wins": 0,
+        "draws": 48,
+        "losses": 2,
+        "games": 50
+      },
+      "1000": {
+        "wins": 0,
+        "draws": 50,
+        "losses": 0,
+        "games": 50
+      },
+      "2000": {
+        "wins": 0,
+        "draws": 50,
+        "losses": 0,
+        "games": 50
+      }
+    }
+  },
+  "random": {
+    "1.0": {
+      "100": {
+        "wins": 46,
+        "draws": 2,
+        "losses": 2,
+        "games": 50
+      },
+      "500": {
+        "wins": 41,
+        "draws": 9,
+        "losses": 0,
+        "games": 50
+      },
+      "1000": {
+        "wins": 40,
+        "draws": 10,
+        "losses": 0,
+        "games": 50
+      },
+      "2000": {
+        "wins": 44,
+        "draws": 6,
+        "losses": 0,
+        "games": 50
+      }
+    },
+    "1.414": {
+      "100": {
+        "wins": 44,
+        "draws": 2,
+        "losses": 4,
+        "games": 50
+      },
+      "500": {
+        "wins": 41,
+        "draws": 9,
+        "losses": 0,
+        "games": 50
+      },
+      "1000": {
+        "wins": 41,
+        "draws": 9,
+        "losses": 0,
+        "games": 50
+      },
+      "2000": {
+        "wins": 44,
+        "draws": 6,
+        "losses": 0,
+        "games": 50
+      }
+    }
+  }
+}

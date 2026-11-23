@@ -9,16 +9,19 @@ MCTS xây dựng cây tìm kiếm dần dần qua các vòng lặp, tập trung 
 | `iterations` | 1000 | Số vòng lặp 4 bước mỗi lần gọi `get_move` |
 | `c` | √2 ≈ 1.414 | Hằng số khám phá trong UCT |
 | `rollout_fn` | `random_rollout` | Hàm simulation; thay bằng `heuristic_rollout` để mạnh hơn |
+| `uct_variant` | `"standard"` | Biến thể UCT (`standard`, `no_sqrt`, `no_ln`, `linear`, `progressive_bias`) |
 
 ---
 
 ## `get_move(board) → (row, col)`
 
+Gọi `_search(board)` để:
 1. Tạo **root node** từ board hiện tại.
 2. Lặp `iterations` lần, mỗi vòng thực hiện 4 bước MCTS.
-3. Trả về nước đi của **con được thăm nhiều nhất** (`most_visited_child`).
+3. Lưu thống kê các nút con gốc vào `self.last_root_stats` (sắp xếp theo `N` giảm dần).
+4. Trả về nước đi của **con được thăm nhiều nhất** (`most_visited_child`).
 
-Dùng số lần thăm (N) thay vì UCT score khi chọn nước cuối cùng vì N ổn định hơn — ít bị ảnh hưởng bởi một vài simulation may mắn hay xui rủi.
+Dùng số lần thăm (N) thay vì UCT score khi chọn nước cuối cùng vì N ổn định hơn — ít bị ảnh hưởng bởi một vài simulation may mắn hay xui rủi. Việc lưu `last_root_stats` giúp UI hiển thị thống kê ngay mà không phải chạy lại MCTS lần thứ hai.
 
 ---
 

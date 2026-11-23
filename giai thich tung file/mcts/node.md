@@ -19,7 +19,9 @@ Mỗi nút đại diện cho một **trạng thái bàn cờ** cùng thống kê
 
 ---
 
-## UCT Score
+## UCT Score & Các biến thể
+
+Công thức chuẩn (`variant="standard"`):
 
 ```
 UCT_i = W_i/N_i  +  c × √(ln(N_parent) / N_i)
@@ -32,6 +34,12 @@ UCT_i = W_i/N_i  +  c × √(ln(N_parent) / N_i)
 
 - Nút chưa được thăm (`N = 0`) → trả về `+∞` để được ưu tiên tuyệt đối.
 - `c = √2 ≈ 1.414` theo lý thuyết UCB1 — có thể điều chỉnh qua thực nghiệm.
+
+Ngoài ra `uct_score(c, variant)` hỗ trợ thêm 4 biến thể để thực nghiệm:
+- `no_sqrt`: `W/N + c * (ln(N_p) / N)` (bỏ căn)
+- `no_ln`: `W/N + c * sqrt(N_p / N)` (bỏ `ln`)
+- `linear`: `W/N + c * (N_p / N)` (bỏ cả căn và `ln`)
+- `progressive_bias`: `W/N + c * sqrt(ln(N_p) / N) + H / (N + 1)` với `H = 0.5 + 0.5 * tanh(evaluate / 5000)` (lazy-cache trong `_get_heuristic()`), định hướng giai đoạn đầu rồi tắt dần khi `N` lớn.
 
 ---
 

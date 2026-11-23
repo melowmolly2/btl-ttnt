@@ -1,0 +1,18 @@
+{
+  "random": {
+    "wins": 84,
+    "draws": 16,
+    "losses": 0,
+    "games": 100,
+    "winrate": 84.0,
+    "avg_move_ms": 52.2
+  },
+  "heuristic": {
+    "wins": 90,
+    "draws": 10,
+    "losses": 0,
+    "games": 100,
+    "winrate": 90.0,
+    "avg_move_ms": 51.17
+  }
+}

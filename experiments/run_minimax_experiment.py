@@ -95,10 +95,16 @@ def run_experiment():
         all_minimax[cfg["label"]] = mm_nodes
         all_ab[cfg["label"]] = ab_nodes
 
-    # Vẽ đồ thị cho từng bàn
+    # Vẽ đồ thị cho từng bàn (lưu file riêng, không ghi đè)
     for cfg in configs:
-        print(f"\n  Vẽ đồ thị bàn {cfg['label']}...")
-        plot_nodes_comparison(all_minimax[cfg["label"]], all_ab[cfg["label"]])
+        lbl = cfg["label"]
+        print(f"\n  Vẽ đồ thị bàn {lbl}...")
+        plot_nodes_comparison(
+            all_minimax[lbl],
+            all_ab[lbl],
+            filename=f"nodes_minimax_vs_ab_{lbl}.png",
+            title_suffix=lbl,
+        )
 
 
 if __name__ == "__main__":

@@ -66,11 +66,13 @@ def heuristic_rollout(board: Board, player: int) -> float:
 # ------------------------------------------------------------------
 
 def _result(board: Board, player: int) -> float:
+    """1.0 nếu player thắng, 0.0 nếu đối thủ thắng, 0.5 cho mọi trường hợp còn lại
+    (hòa, hoặc rollout bị cắt ở MAX_ROLLOUT_STEPS khi chưa ai thắng)."""
     if board.winner == player:
         return 1.0
-    if board.is_draw:
-        return 0.5
-    return 0.0
+    if board.winner is not None:
+        return 0.0
+    return 0.5
 
 
 def _pick_smart_move(board: Board):
