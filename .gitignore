@@ -8,3 +8,9 @@ build/
 .DS_Store
 experiments/results/*.csv
 !experiments/results/.gitkeep
+logs/
+*.log
+report/*.aux
+report/*.fdb_latexmk
+report/*.fls
+report/*.out

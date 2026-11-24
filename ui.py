@@ -3,16 +3,21 @@ ui.py — Giao diện Tkinter cho Tic-Tac-Toe AI.
 Chạy: python ui.py
 """
 import math
+import time
 import threading
+from datetime import datetime
 import tkinter as tk
 from tkinter import ttk, messagebox
 import sys, os
 sys.path.insert(0, os.path.dirname(__file__))
 
+LOGS_DIR = os.path.join(os.path.dirname(__file__), "logs")
+
 from src.game.board import Board, X, O
 from src.minimax.minimax import MinimaxAgent
 from src.minimax.alpha_beta import AlphaBetaAgent
 from src.mcts.mcts import MCTSAgent
+from src.mcts.node import UCT_VARIANTS
 from src.mcts.rollout import random_rollout, heuristic_rollout
 from src.utils.evaluate import evaluate
 
@@ -32,7 +37,7 @@ STATS_BG   = "#11111b"
 DIM_COLOR  = "#6c7086"
 
 CELL   = 40
-MARGIN = 20
+MARGIN = 28
 
 
 # ── Wrapper agent — trả về move + stats ──────────────────────────────────────
@@ -160,12 +165,21 @@ class SetupScreen(tk.Toplevel):
                        bg=BG, fg=TEXT_COLOR, selectcolor=BOARD_BG,
                        activebackground=BG).pack(anchor="w")
 
+        # uct variant
+        vf = tk.Frame(sub, bg=BG)
+        vf.pack(fill="x")
+        tk.Label(vf, text="UCT:", bg=BG, fg=TEXT_COLOR, width=6, anchor="w").pack(side="left")
+        vv = tk.StringVar(value="standard")
+        setattr(self, f"{attr}_variant", vv)
+        ttk.Combobox(vf, textvariable=vv, values=list(UCT_VARIANTS),
+                     state="readonly", width=15).pack(side="left")
+
         self._refresh(attr)
 
     def _refresh(self, attr):
         t   = getattr(self, f"{attr}_type").get()
         sub = getattr(self, f"{attr}_sub")
-        children = sub.winfo_children()   # [depth_f, iters_f, c_f, heur_f]
+        children = sub.winfo_children()   # [depth_f, iters_f, c_f, heur_f, variant_f]
 
         for w in children:
             w.pack_forget()
@@ -188,13 +202,15 @@ class SetupScreen(tk.Toplevel):
             label = f"{t}(d={d})"
             return AgentWrapper(ag, kind), label
         else:  # MCTS
-            iters = getattr(self, f"{attr}_iters").get()
-            c     = getattr(self, f"{attr}_c").get()
-            heur  = getattr(self, f"{attr}_heur").get()
+            iters   = getattr(self, f"{attr}_iters").get()
+            c       = getattr(self, f"{attr}_c").get()
+            heur    = getattr(self, f"{attr}_heur").get()
+            variant = getattr(self, f"{attr}_variant").get()
             rollout = heuristic_rollout if heur else random_rollout
-            ag    = MCTSAgent(iterations=iters, c=c, rollout_fn=rollout)
-            rname = "heur" if heur else "rand"
-            label = f"MCTS(i={iters},c={c:.2f},{rname})"
+            ag      = MCTSAgent(iterations=iters, c=c, rollout_fn=rollout, uct_variant=variant)
+            rname   = "heur" if heur else "rand"
+            vtag    = f",{variant}" if variant != "standard" else ""
+            label   = f"MCTS(i={iters},c={c:.2f},{rname}{vtag})"
             return AgentWrapper(ag, "mcts"), label
 
     def _start(self):
@@ -224,12 +240,61 @@ class GameScreen:
         self.last_move  = None
         self.game_over  = False
         self.ai_thinking = False
+        self._game_id   = 0
 
         self._build_ui()
+        self._init_log()
         self._draw_board()
         self._update_status()
         self._clear_stats()
         self._maybe_ai_move()
+
+    # ── Ghi log ván đấu ──────────────────────────────────────────────────────
+
+    def _init_log(self):
+        os.makedirs(LOGS_DIR, exist_ok=True)
+        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+        self.log_path = os.path.join(LOGS_DIR, f"game_{ts}_{self._game_id}.log")
+        self._write_log(
+            f"=== VÁN MỚI ({datetime.now().strftime('%Y-%m-%d %H:%M:%S')}) ===\n"
+            f"Bàn cờ : {self.board_size}x{self.board_size} (win_len={self.win_len})\n"
+            f"X      : {self.name_x}\n"
+            f"O      : {self.name_o}\n"
+            f"{'-'*50}"
+        )
+
+    def _write_log(self, text: str):
+        with open(self.log_path, "a", encoding="utf-8") as f:
+            f.write(text + "\n")
+
+    def _log_move(self, player: int, move: tuple[int, int], elapsed_ms: float | None = None, wrapper=None):
+        step = len(self.board.move_history)
+        sym = "X" if player == X else "O"
+        if wrapper is None:
+            self._write_log(f"#{step:>3} [{sym}] Human -> {move}")
+            return
+        s = wrapper.stats
+        t_str = f"{elapsed_ms:.1f} ms" if elapsed_ms is not None else ""
+        if wrapper.kind in ("minimax", "alphabeta"):
+            detail = f"nodes={s.get('nodes', 0):,}"
+        else:
+            top_str = ", ".join(
+                f"{r['move']}(N={r['N']},W/N={r['W/N']:.3f})"
+                for r in s.get("top", [])
+            )
+            detail = f"top=[{top_str}]"
+        self._write_log(f"#{step:>3} [{sym}] {move} | {t_str} | {detail}")
+
+    def _log_result_if_over(self):
+        if not self.board.is_terminal:
+            return
+        if self.board.winner == X:
+            res = f"X THẮNG ({self.name_x})"
+        elif self.board.winner == O:
+            res = f"O THẮNG ({self.name_o})"
+        else:
+            res = "HÒA"
+        self._write_log(f"{'-'*50}\nKẾT QUẢ: {res} | Tổng số nước: {len(self.board.move_history)}")
 
     # ── Build UI ─────────────────────────────────────────────────────────────
 
@@ -282,18 +347,19 @@ class GameScreen:
 
         ttk.Separator(panel, orient="horizontal").pack(fill="x", pady=10, padx=10)
 
-        # === Stats box ===
-        tk.Label(panel, text="AI Stats", bg=PANEL_BG, fg=DIM_COLOR,
-                 font=("Consolas", 9, "bold")).pack(anchor="w", padx=14)
-
-        stats_box = tk.Frame(panel, bg=STATS_BG, bd=0)
-        stats_box.pack(fill="x", padx=10, pady=4)
-
-        self.stats_var = tk.StringVar(value="—")
-        tk.Label(stats_box, textvariable=self.stats_var, bg=STATS_BG, fg=TEXT_COLOR,
-                 font=("Consolas", 8), wraplength=185, justify="left",
-                 anchor="nw", padx=6, pady=6
-                 ).pack(fill="x")
+        # === Stats boxes (riêng cho X và O để xem được cả 2 khi AI vs AI) ===
+        self.stats_vars = {}
+        for player, title, color in [(X, "X Stats", X_COLOR), (O, "O Stats", O_COLOR)]:
+            tk.Label(panel, text=title, bg=PANEL_BG, fg=color,
+                     font=("Consolas", 9, "bold")).pack(anchor="w", padx=14)
+            box = tk.Frame(panel, bg=STATS_BG, bd=0)
+            box.pack(fill="x", padx=10, pady=(2, 6))
+            var = tk.StringVar(value="—")
+            self.stats_vars[player] = var
+            tk.Label(box, textvariable=var, bg=STATS_BG, fg=TEXT_COLOR,
+                     font=("Consolas", 8), wraplength=185, justify="left",
+                     anchor="nw", padx=6, pady=5
+                     ).pack(fill="x")
 
         ttk.Separator(panel, orient="horizontal").pack(fill="x", pady=10, padx=10)
 
@@ -326,6 +392,16 @@ class GameScreen:
             y = MARGIN + i * CELL
             self.canvas.create_line(MARGIN, y, size - MARGIN, y, fill=LINE_COLOR)
             self.canvas.create_line(x, MARGIN, x, size - MARGIN, fill=LINE_COLOR)
+
+        # Đánh số hàng (trái) và cột (trên)
+        coord_color = "#a6adc8"
+        for i in range(n):
+            cx = MARGIN + i * CELL + CELL / 2
+            cy = MARGIN + i * CELL + CELL / 2
+            self.canvas.create_text(cx, MARGIN / 2, text=str(i),
+                                    fill=coord_color, font=("Consolas", 9))
+            self.canvas.create_text(MARGIN / 2, cy, text=str(i),
+                                    fill=coord_color, font=("Consolas", 9))
 
         if self.last_move:
             r, c = self.last_move
@@ -371,13 +447,17 @@ class GameScreen:
 
     # ── Stats ─────────────────────────────────────────────────────────────────
 
-    def _clear_stats(self):
-        self.stats_var.set("—")
+    def _clear_stats(self, player=None):
+        if player is None:
+            for var in self.stats_vars.values():
+                var.set("—")
+        else:
+            self.stats_vars[player].set("—")
 
-    def _show_stats(self, wrapper: AgentWrapper):
+    def _show_stats(self, player: int, wrapper: AgentWrapper):
         s = wrapper.stats
         if not s:
-            self._clear_stats()
+            self._clear_stats(player)
             return
 
         if wrapper.kind in ("minimax", "alphabeta"):
@@ -392,14 +472,15 @@ class GameScreen:
                 lines.append(f"{str(row['move']):<10} {row['N']:>5}  {wn:>6}")
             txt = "\n".join(lines)
 
-        self.stats_var.set(txt)
+        self.stats_vars[player].set(txt)
 
     # ── Click ─────────────────────────────────────────────────────────────────
 
     def _on_click(self, event):
         if self.game_over or self.ai_thinking:
             return
-        agent = self.ai_x if self.board.current_player == X else self.ai_o
+        player = self.board.current_player
+        agent = self.ai_x if player == X else self.ai_o
         if agent is not None:
             return
 
@@ -408,7 +489,9 @@ class GameScreen:
         if 0 <= r < self.board_size and 0 <= c < self.board_size:
             if self.board.make_move(r, c):
                 self.last_move = (r, c)
-                self._clear_stats()
+                self.stats_vars[player].set(f"Human: {(r, c)}")
+                self._log_move(player, (r, c))
+                self._log_result_if_over()
                 self._draw_board()
                 self._update_status()
                 if not self.game_over:
@@ -419,45 +502,57 @@ class GameScreen:
     def _maybe_ai_move(self):
         if self.game_over:
             return
-        wrapper = self.ai_x if self.board.current_player == X else self.ai_o
+        player = self.board.current_player
+        wrapper = self.ai_x if player == X else self.ai_o
         if wrapper is None:
             return
 
         self.ai_thinking = True
-        p = "X" if self.board.current_player == X else "O"
+        p = "X" if player == X else "O"
         self.turn_var.set(f"⏳ {p} đang suy nghĩ...")
-        self._clear_stats()
+
+        gid = self._game_id
+        board_snap = self.board.clone()
 
         def run():
-            move = wrapper.get_move(self.board)
-            self.root.after(0, lambda: self._apply_ai_move(move, wrapper))
+            t0 = time.perf_counter()
+            move = wrapper.get_move(board_snap)
+            elapsed_ms = (time.perf_counter() - t0) * 1000.0
+            self.root.after(0, lambda: self._apply_ai_move(player, move, wrapper, gid, elapsed_ms))
 
         threading.Thread(target=run, daemon=True).start()
 
-    def _apply_ai_move(self, move, wrapper):
+    def _apply_ai_move(self, player, move, wrapper, gid, elapsed_ms):
+        if gid != self._game_id or self.game_over:
+            return
         self.board.make_move(*move)
         self.last_move   = move
         self.ai_thinking = False
+        self._log_move(player, move, elapsed_ms, wrapper)
+        self._log_result_if_over()
         self._draw_board()
         self._update_status()
-        self._show_stats(wrapper)
+        self._show_stats(player, wrapper)
         if not self.game_over:
             self._maybe_ai_move()
 
     # ── Điều hướng ───────────────────────────────────────────────────────────
 
     def _new_game(self):
+        self._game_id   += 1
         self.board       = Board(self.board_size, self.win_len)
         self.last_move   = None
         self.game_over   = False
         self.ai_thinking = False
         self.status_var.set("")
+        self._init_log()
         self._draw_board()
         self._update_status()
         self._clear_stats()
         self._maybe_ai_move()
 
     def _open_setup(self):
+        self._game_id += 1
         for w in self.root.winfo_children():
             w.destroy()
         _show_setup(self.root)

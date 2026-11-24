@@ -7,6 +7,7 @@ from src.game.board import X, O
 from src.minimax.minimax import MinimaxAgent
 from src.minimax.alpha_beta import AlphaBetaAgent
 from src.mcts.mcts import MCTSAgent
+from src.mcts.node import UCT_VARIANTS
 from src.mcts.rollout import random_rollout, heuristic_rollout
 from src.utils.evaluate import evaluate
 
@@ -36,10 +37,13 @@ def make_mcts_agent():
         iters = int(input("    Iterations [1000]: ").strip() or "1000")
         c = float(input("    C [1.414]: ").strip() or "1.414")
         h = input("    Heuristic rollout? (y/N): ").strip().lower() == "y"
+        v = input(f"    UCT variant {UCT_VARIANTS} [standard]: ").strip() or "standard"
+        if v not in UCT_VARIANTS:
+            v = "standard"
     except ValueError:
-        iters, c, h = 1000, math.sqrt(2), False
+        iters, c, h, v = 1000, math.sqrt(2), False, "standard"
     rollout = heuristic_rollout if h else random_rollout
-    agent = MCTSAgent(iterations=iters, c=c, rollout_fn=rollout)
+    agent = MCTSAgent(iterations=iters, c=c, rollout_fn=rollout, uct_variant=v)
     return lambda board: agent.get_move(board)
 
 

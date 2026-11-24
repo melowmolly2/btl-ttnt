@@ -10,7 +10,7 @@ Entry point chạy game trên terminal (`python main.py`). Cho phép chọn ngư
 |---|---|---|
 | `make_minimax_agent()` | `depth` (mặc định 3) | `MinimaxAgent(max_depth=depth, eval_fn=evaluate)` |
 | `make_ab_agent()` | `depth` (mặc định 3) | `AlphaBetaAgent(max_depth=depth, eval_fn=evaluate)` |
-| `make_mcts_agent()` | `iterations` (1000), `c` (1.414), `heuristic` (y/N) | `MCTSAgent` với `random_rollout` hoặc `heuristic_rollout` |
+| `make_mcts_agent()` | `iterations` (1000), `c` (1.414), `heuristic` (y/N), `uct_variant` (`standard`) | `MCTSAgent` với rollout và biến thể UCT đã chọn (`standard`, `no_sqrt`, `no_ln`, `linear`, `progressive_bias`) |
 
 Mỗi hàm trả về một closure `lambda board: agent.get_move(board)` để truyền trực tiếp vào `play_game()`.
 
